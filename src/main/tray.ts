@@ -5,8 +5,15 @@ import { getProxyStatus } from './ipc/handlers'
 let tray: Tray | null = null
 let isProxyRunning = false
 
+function getIconPath(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, 'build/icon.png')
+  }
+  return join(__dirname, '../../build/icon.png')
+}
+
 function loadAppIcon(): nativeImage {
-  const iconPath = join(__dirname, '../../build/icon.png')
+  const iconPath = getIconPath()
   
   try {
     let icon = nativeImage.createFromPath(iconPath)
@@ -49,7 +56,7 @@ function createFallbackIcon(): nativeImage {
 }
 
 function createRunningIcon(): nativeImage {
-  const iconPath = join(__dirname, '../../build/icon.png')
+  const iconPath = getIconPath()
   
   try {
     let icon = nativeImage.createFromPath(iconPath)

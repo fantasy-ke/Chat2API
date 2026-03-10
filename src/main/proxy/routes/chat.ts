@@ -39,6 +39,30 @@ function getClientIP(ctx: Context): string {
 }
 
 /**
+ * Extract user input from messages (last user message, truncated to 200 chars)
+ */
+function extractUserInput(messages: Array<{ role: string; content?: string | any[] | null }>): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.role === 'user' && msg.content) {
+      let content = ''
+      if (typeof msg.content === 'string') {
+        content = msg.content
+      } else if (Array.isArray(msg.content)) {
+        const textParts = msg.content.filter((p: any) => p.type === 'text')
+        if (textParts.length > 0) {
+          content = textParts.map((p: any) => p.text || '').join(' ')
+        }
+      }
+      if (content) {
+        return content.length > 200 ? content.substring(0, 200) + '...' : content
+      }
+    }
+  }
+  return undefined
+}
+
+/**
  * Handle Chat Completions Request
  */
 router.post('/completions', async (ctx: Context) => {
@@ -190,6 +214,29 @@ router.post('/completions', async (ctx: Context) => {
         latency,
       })
 
+      const userInput = extractUserInput(request.messages)
+      storeManager.addRequestLog({
+        timestamp: startTime,
+        status: 'error',
+        statusCode: result.status || 500,
+        method: 'POST',
+        url: '/v1/chat/completions',
+        model: request.model,
+        actualModel,
+        providerId: provider.id,
+        providerName: provider.name,
+        accountId: account.id,
+        accountName: account.name,
+        requestBody: JSON.stringify(request),
+        userInput,
+        responseStatus: result.status || 500,
+        latency,
+        isStream: request.stream || false,
+        errorMessage: result.error,
+      })
+
+      storeManager.recordRequestInStats(false, latency, request.model, provider.id, account.id)
+
       return
     }
 
@@ -212,6 +259,28 @@ router.post('/completions', async (ctx: Context) => {
       latency,
       isStream: request.stream,
     })
+
+    const userInput = extractUserInput(request.messages)
+    storeManager.addRequestLog({
+      timestamp: startTime,
+      status: 'success',
+      statusCode: 200,
+      method: 'POST',
+      url: '/v1/chat/completions',
+      model: request.model,
+      actualModel,
+      providerId: provider.id,
+      providerName: provider.name,
+      accountId: account.id,
+      accountName: account.name,
+      requestBody: JSON.stringify(request),
+      userInput,
+      responseStatus: 200,
+      latency,
+      isStream: request.stream || false,
+    })
+
+    storeManager.recordRequestInStats(true, latency, request.model, provider.id, account.id)
 
     if (request.stream === true && result.stream) {
       ctx.set('Content-Type', 'text/event-stream')
@@ -319,6 +388,7 @@ router.post('/completions', async (ctx: Context) => {
     proxyStatusManager.recordRequestFailure(latency)
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
 
     ctx.status = 500
     ctx.body = {
@@ -338,6 +408,30 @@ router.post('/completions', async (ctx: Context) => {
       latency,
       error: errorMessage,
     })
+
+    const userInput = extractUserInput(request.messages)
+    storeManager.addRequestLog({
+      timestamp: startTime,
+      status: 'error',
+      statusCode: 500,
+      method: 'POST',
+      url: '/v1/chat/completions',
+      model: request.model,
+      actualModel,
+      providerId: provider.id,
+      providerName: provider.name,
+      accountId: account.id,
+      accountName: account.name,
+      requestBody: JSON.stringify(request),
+      userInput,
+      responseStatus: 500,
+      latency,
+      isStream: request.stream || false,
+      errorMessage,
+      errorStack,
+    })
+
+    storeManager.recordRequestInStats(false, latency, request.model, provider.id, account.id)
   }
 })
 

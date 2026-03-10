@@ -261,6 +261,88 @@ interface SessionAPI {
   cleanExpired: () => Promise<number>
 }
 
+interface RequestLogEntry {
+  id: string
+  timestamp: number
+  status: 'success' | 'error'
+  statusCode: number
+  method: string
+  url: string
+  model: string
+  actualModel?: string
+  providerId?: string
+  providerName?: string
+  accountId?: string
+  accountName?: string
+  requestBody?: string
+  userInput?: string
+  responseStatus: number
+  responsePreview?: string
+  latency: number
+  isStream: boolean
+  errorMessage?: string
+  errorStack?: string
+}
+
+interface RequestLogFilter {
+  status?: 'success' | 'error'
+  providerId?: string
+  limit?: number
+}
+
+interface RequestLogStats {
+  total: number
+  success: number
+  error: number
+  todayTotal: number
+  todaySuccess: number
+  todayError: number
+}
+
+interface RequestLogTrend {
+  date: string
+  total: number
+  success: number
+  error: number
+  avgLatency: number
+}
+
+interface RequestLogsAPI {
+  get: (filter?: RequestLogFilter) => Promise<RequestLogEntry[]>
+  getById: (id: string) => Promise<RequestLogEntry | undefined>
+  getStats: () => Promise<RequestLogStats>
+  getTrend: (days?: number) => Promise<RequestLogTrend[]>
+  clear: () => Promise<void>
+  onNewLog: (callback: (log: RequestLogEntry) => void) => () => void
+}
+
+interface PersistentStatistics {
+  totalRequests: number
+  successRequests: number
+  failedRequests: number
+  totalLatency: number
+  lastUpdated: number
+  modelUsage: Record<string, number>
+  providerUsage: Record<string, number>
+  accountUsage: Record<string, number>
+  dailyStats: Record<string, DailyStatistics>
+}
+
+interface DailyStatistics {
+  date: string
+  totalRequests: number
+  successRequests: number
+  failedRequests: number
+  totalLatency: number
+  modelUsage: Record<string, number>
+  providerUsage: Record<string, number>
+}
+
+interface StatisticsAPI {
+  get: () => Promise<PersistentStatistics>
+  getToday: () => Promise<DailyStatistics>
+}
+
 interface ElectronAPI {
   proxy: ProxyAPI
   store: StoreAPI
@@ -268,6 +350,8 @@ interface ElectronAPI {
   accounts: AccountsAPI
   oauth: OAuthAPI
   logs: LogsAPI
+  requestLogs: RequestLogsAPI
+  statistics: StatisticsAPI
   app: AppAPI
   config: ConfigAPI
   prompts: PromptsAPI

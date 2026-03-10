@@ -140,12 +140,38 @@ export const useProxyStore = create<ProxyState>((set, get) => ({
   },
 
   fetchProxyStatistics: async () => {
-    if (!window.electronAPI?.invoke) {
+    if (!window.electronAPI?.statistics?.get) {
       set({ proxyStatistics: DEFAULT_STATISTICS })
       return
     }
     try {
-      const statistics = await window.electronAPI.invoke('proxy:getStatistics') as ProxyStatistics
+      const persistentStats = await window.electronAPI.statistics.get()
+      const today = new Date().toISOString().split('T')[0]
+      const todayStats = persistentStats?.dailyStats?.[today] || {
+        totalRequests: 0,
+        successRequests: 0,
+        failedRequests: 0,
+        totalLatency: 0,
+        modelUsage: {},
+        providerUsage: {},
+      }
+      
+      const avgLatency = todayStats.successRequests > 0 
+        ? Math.round(todayStats.totalLatency / todayStats.successRequests) 
+        : 0
+      
+      const statistics: ProxyStatistics = {
+        totalRequests: todayStats.totalRequests,
+        successRequests: todayStats.successRequests,
+        failedRequests: todayStats.failedRequests,
+        avgLatency: avgLatency,
+        requestsPerMinute: 0,
+        activeConnections: 0,
+        modelUsage: todayStats.modelUsage,
+        providerUsage: todayStats.providerUsage,
+        accountUsage: persistentStats?.accountUsage || {},
+      }
+      
       set({ proxyStatistics: statistics || DEFAULT_STATISTICS })
     } catch (error) {
       set({ proxyStatistics: DEFAULT_STATISTICS })

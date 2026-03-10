@@ -21,6 +21,10 @@ import {
   SessionConfig,
   DEFAULT_SESSION_CONFIG,
   ChatMessage,
+  RequestLogEntry,
+  PersistentStatistics,
+  DailyStatistics,
+  DEFAULT_STATISTICS,
 } from './types'
 import { BUILTIN_PROMPTS } from '../data/builtin-prompts'
 import { IpcChannels } from '../ipc/channels'
@@ -108,8 +112,10 @@ class StoreManager {
       accounts: [],
       config: DEFAULT_CONFIG,
       logs: [],
+      requestLogs: [],
       systemPrompts: [],
       sessions: [],
+      statistics: DEFAULT_STATISTICS,
     }
   }
 
@@ -284,8 +290,8 @@ class StoreManager {
    */
   getProviderById(id: string): Provider | undefined {
     this.ensureInitialized()
-    const providers = this.store!.get('providers') || []
-    return providers.find((p) => p.id === id)
+    const providers = this.store!.get('providers') as Provider[] || []
+    return providers.find((p: Provider) => p.id === id)
   }
 
   /**
@@ -293,7 +299,7 @@ class StoreManager {
    */
   addProvider(provider: Provider): void {
     this.ensureInitialized()
-    const providers = this.store!.get('providers') || []
+    const providers = this.store!.get('providers') as Provider[] || []
     providers.push(provider)
     this.store!.set('providers', providers)
   }
@@ -303,8 +309,8 @@ class StoreManager {
    */
   updateProvider(id: string, updates: Partial<Provider>): Provider | null {
     this.ensureInitialized()
-    const providers = this.store!.get('providers') || []
-    const index = providers.findIndex((p) => p.id === id)
+    const providers = this.store!.get('providers') as Provider[] || []
+    const index = providers.findIndex((p: Provider) => p.id === id)
     
     if (index === -1) {
       return null
@@ -325,8 +331,8 @@ class StoreManager {
    */
   deleteProvider(id: string): boolean {
     this.ensureInitialized()
-    const providers = this.store!.get('providers') || []
-    const index = providers.findIndex((p) => p.id === id)
+    const providers = this.store!.get('providers') as Provider[] || []
+    const index = providers.findIndex((p: Provider) => p.id === id)
     
     if (index === -1) {
       return false
@@ -335,8 +341,8 @@ class StoreManager {
     providers.splice(index, 1)
     this.store!.set('providers', providers)
     
-    const accounts = this.store!.get('accounts') || []
-    const filteredAccounts = accounts.filter((a) => a.providerId !== id)
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const filteredAccounts = accounts.filter((a: Account) => a.providerId !== id)
     this.store!.set('accounts', filteredAccounts)
     
     return true
@@ -350,10 +356,10 @@ class StoreManager {
    */
   getAccounts(includeCredentials: boolean = false): Account[] {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
+    const accounts = this.store!.get('accounts') as Account[] || []
     
     if (includeCredentials) {
-      return accounts.map((account) => ({
+      return accounts.map((account: Account) => ({
         ...account,
         credentials: this.decryptCredentials(account.credentials),
       }))
@@ -368,8 +374,8 @@ class StoreManager {
    */
   getAccountById(id: string, includeCredentials: boolean = false): Account | undefined {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
-    const account = accounts.find((a) => a.id === id)
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const account = accounts.find((a: Account) => a.id === id)
     
     if (account && includeCredentials) {
       return {
@@ -386,11 +392,11 @@ class StoreManager {
    */
   getAccountsByProviderId(providerId: string, includeCredentials: boolean = false): Account[] {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
-    const filtered = accounts.filter((a) => a.providerId === providerId)
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const filtered = accounts.filter((a: Account) => a.providerId === providerId)
     
     if (includeCredentials) {
-      return filtered.map((account) => ({
+      return filtered.map((account: Account) => ({
         ...account,
         credentials: this.decryptCredentials(account.credentials),
       }))
@@ -421,8 +427,8 @@ class StoreManager {
    */
   updateAccount(id: string, updates: Partial<Account>): Account | null {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
-    const index = accounts.findIndex((a) => a.id === id)
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const index = accounts.findIndex((a: Account) => a.id === id)
     
     if (index === -1) {
       return null
@@ -470,8 +476,8 @@ class StoreManager {
    */
   deleteAccount(id: string): boolean {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
-    const index = accounts.findIndex((a) => a.id === id)
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const index = accounts.findIndex((a: Account) => a.id === id)
     
     if (index === -1) {
       return false
@@ -487,11 +493,11 @@ class StoreManager {
    */
   getActiveAccounts(includeCredentials: boolean = false): Account[] {
     this.ensureInitialized()
-    const accounts = this.store!.get('accounts') || []
-    const active = accounts.filter((a) => a.status === 'active')
+    const accounts = this.store!.get('accounts') as Account[] || []
+    const active = accounts.filter((a: Account) => a.status === 'active')
     
     if (includeCredentials) {
-      return active.map((account) => ({
+      return active.map((account: Account) => ({
         ...account,
         credentials: this.decryptCredentials(account.credentials),
       }))
@@ -594,10 +600,10 @@ class StoreManager {
    */
   getLogs(limit?: number, level?: LogLevel): LogEntry[] {
     this.ensureInitialized()
-    let logs = this.store!.get('logs') || []
+    let logs = this.store!.get('logs') as LogEntry[] || []
     
     if (level) {
-      logs = logs.filter((l) => l.level === level)
+      logs = logs.filter((l: LogEntry) => l.level === level)
     }
     
     if (limit && logs.length > limit) {
@@ -752,8 +758,275 @@ class StoreManager {
     const logs = this.store!.get('logs') || []
     const cutoff = Date.now() - config.logRetentionDays * 24 * 60 * 60 * 1000
     
-    const filtered = logs.filter((l) => l.timestamp >= cutoff)
+    const filtered = logs.filter((l: LogEntry) => l.timestamp >= cutoff)
     this.store!.set('logs', filtered)
+  }
+
+  // ==================== Request Log Operations ====================
+
+  /**
+   * Add Request Log Entry
+   */
+  addRequestLog(entry: Omit<RequestLogEntry, 'id'>): RequestLogEntry {
+    this.ensureInitialized()
+    const requestLogs = this.store!.get('requestLogs') || []
+    
+    const newEntry: RequestLogEntry = {
+      ...entry,
+      id: this.generateId(),
+    }
+    
+    requestLogs.push(newEntry)
+    
+    const config = this.getConfig()
+    const maxLogs = config.logRetentionDays * 500
+    if (requestLogs.length > maxLogs) {
+      requestLogs.splice(0, requestLogs.length - maxLogs)
+    }
+    
+    this.store!.set('requestLogs', requestLogs)
+    
+    this.mainWindow?.webContents.send(IpcChannels.REQUEST_LOGS_NEW, newEntry)
+    
+    return newEntry
+  }
+
+  /**
+   * Get Request Logs
+   */
+  getRequestLogs(limit?: number, filter?: { status?: 'success' | 'error'; providerId?: string }): RequestLogEntry[] {
+    this.ensureInitialized()
+    let requestLogs = this.store!.get('requestLogs') || []
+    
+    if (filter?.status) {
+      requestLogs = requestLogs.filter((l: RequestLogEntry) => l.status === filter.status)
+    }
+    
+    if (filter?.providerId) {
+      requestLogs = requestLogs.filter((l: RequestLogEntry) => l.providerId === filter.providerId)
+    }
+    
+    requestLogs.sort((a: RequestLogEntry, b: RequestLogEntry) => b.timestamp - a.timestamp)
+    
+    if (limit && requestLogs.length > limit) {
+      requestLogs = requestLogs.slice(0, limit)
+    }
+    
+    return requestLogs
+  }
+
+  /**
+   * Get Request Log By ID
+   */
+  getRequestLogById(id: string): RequestLogEntry | undefined {
+    this.ensureInitialized()
+    const requestLogs = this.store!.get('requestLogs') || []
+    return requestLogs.find((l: RequestLogEntry) => l.id === id)
+  }
+
+  /**
+   * Clear Request Logs
+   */
+  clearRequestLogs(): void {
+    this.ensureInitialized()
+    this.store!.set('requestLogs', [])
+    this.store!.set('statistics', DEFAULT_STATISTICS)
+  }
+
+  /**
+   * Get Request Log Statistics
+   */
+  getRequestLogStats(): { total: number; success: number; error: number; todayTotal: number; todaySuccess: number; todayError: number } {
+    this.ensureInitialized()
+    const requestLogs = this.store!.get('requestLogs') || []
+    
+    const today = new Date().toISOString().split('T')[0]
+    const todayStart = new Date(today).getTime()
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000
+    
+    const todayLogs = requestLogs.filter((l: RequestLogEntry) => l.timestamp >= todayStart && l.timestamp < todayEnd)
+    
+    return {
+      total: requestLogs.length,
+      success: requestLogs.filter((l: RequestLogEntry) => l.status === 'success').length,
+      error: requestLogs.filter((l: RequestLogEntry) => l.status === 'error').length,
+      todayTotal: todayLogs.length,
+      todaySuccess: todayLogs.filter((l: RequestLogEntry) => l.status === 'success').length,
+      todayError: todayLogs.filter((l: RequestLogEntry) => l.status === 'error').length,
+    }
+  }
+
+  /**
+   * Get Request Log Trend
+   */
+  getRequestLogTrend(days: number = 7): { date: string; total: number; success: number; error: number; avgLatency: number }[] {
+    this.ensureInitialized()
+    const requestLogs = this.store!.get('requestLogs') as RequestLogEntry[] || []
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+    const today = new Date().toISOString().split('T')[0]
+    const todayStart = new Date(today).getTime()
+    const trends: { date: string; total: number; success: number; error: number; avgLatency: number }[] = []
+
+    for (let i = days - 1; i >= 0; i--) {
+      const dayStart = todayStart - i * dayMs
+      const dayEnd = dayStart + dayMs
+      const date = new Date(dayStart).toISOString().split('T')[0]
+
+      const dayLogs = requestLogs.filter(
+        (l: RequestLogEntry) => l.timestamp >= dayStart && l.timestamp < dayEnd
+      )
+
+      const successLogs = dayLogs.filter((l: RequestLogEntry) => l.status === 'success')
+      const errorLogs = dayLogs.filter((l: RequestLogEntry) => l.status === 'error')
+      const totalLatency = successLogs.reduce((sum: number, l: RequestLogEntry) => sum + l.latency, 0)
+
+      trends.push({
+        date,
+        total: dayLogs.length,
+        success: successLogs.length,
+        error: errorLogs.length,
+        avgLatency: successLogs.length > 0 ? Math.round(totalLatency / successLogs.length) : 0,
+      })
+    }
+
+    return trends
+  }
+
+  // ==================== Statistics Operations ====================
+
+  /**
+   * Get Persistent Statistics
+   */
+  getStatistics(): PersistentStatistics {
+    this.ensureInitialized()
+    return this.store!.get('statistics') || DEFAULT_STATISTICS
+  }
+
+  /**
+   * Update Statistics
+   */
+  updateStatistics(updates: Partial<PersistentStatistics>): PersistentStatistics {
+    this.ensureInitialized()
+    const currentStats = this.store!.get('statistics') || DEFAULT_STATISTICS
+    const newStats = {
+      ...currentStats,
+      ...updates,
+      lastUpdated: Date.now(),
+    }
+    this.store!.set('statistics', newStats)
+    return newStats
+  }
+
+  /**
+   * Record Request in Statistics
+   */
+  recordRequestInStats(
+    success: boolean,
+    latency: number,
+    model?: string,
+    providerId?: string,
+    accountId?: string
+  ): PersistentStatistics {
+    this.ensureInitialized()
+    const stats = this.store!.get('statistics') || DEFAULT_STATISTICS
+    const today = new Date().toISOString().split('T')[0]
+    
+    const newStats: PersistentStatistics = {
+      ...stats,
+      totalRequests: stats.totalRequests + 1,
+      successRequests: success ? stats.successRequests + 1 : stats.successRequests,
+      failedRequests: success ? stats.failedRequests : stats.failedRequests + 1,
+      totalLatency: success ? stats.totalLatency + latency : stats.totalLatency,
+      lastUpdated: Date.now(),
+      modelUsage: { ...stats.modelUsage },
+      providerUsage: { ...stats.providerUsage },
+      accountUsage: { ...stats.accountUsage },
+      dailyStats: { ...stats.dailyStats },
+    }
+    
+    if (model) {
+      newStats.modelUsage[model] = (newStats.modelUsage[model] || 0) + 1
+    }
+    
+    if (providerId) {
+      newStats.providerUsage[providerId] = (newStats.providerUsage[providerId] || 0) + 1
+    }
+    
+    if (accountId) {
+      newStats.accountUsage[accountId] = (newStats.accountUsage[accountId] || 0) + 1
+    }
+    
+    if (!newStats.dailyStats[today]) {
+      newStats.dailyStats[today] = {
+        date: today,
+        totalRequests: 0,
+        successRequests: 0,
+        failedRequests: 0,
+        totalLatency: 0,
+        modelUsage: {},
+        providerUsage: {},
+      }
+    }
+    
+    newStats.dailyStats[today].totalRequests++
+    if (success) {
+      newStats.dailyStats[today].successRequests++
+      newStats.dailyStats[today].totalLatency += latency
+    } else {
+      newStats.dailyStats[today].failedRequests++
+    }
+    
+    if (model) {
+      newStats.dailyStats[today].modelUsage[model] = (newStats.dailyStats[today].modelUsage[model] || 0) + 1
+    }
+    
+    if (providerId) {
+      newStats.dailyStats[today].providerUsage[providerId] = (newStats.dailyStats[today].providerUsage[providerId] || 0) + 1
+    }
+    
+    this.store!.set('statistics', newStats)
+    return newStats
+  }
+
+  /**
+   * Get Today Statistics
+   */
+  getTodayStatistics(): DailyStatistics {
+    this.ensureInitialized()
+    const stats = this.store!.get('statistics') || DEFAULT_STATISTICS
+    const today = new Date().toISOString().split('T')[0]
+    return stats.dailyStats[today] || {
+      date: today,
+      totalRequests: 0,
+      successRequests: 0,
+      failedRequests: 0,
+      totalLatency: 0,
+      modelUsage: {},
+      providerUsage: {},
+    }
+  }
+
+  /**
+   * Clean Old Daily Statistics (older than 30 days)
+   */
+  cleanOldDailyStats(): void {
+    this.ensureInitialized()
+    const stats = this.store!.get('statistics') || DEFAULT_STATISTICS
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const cutoffDate = new Date(cutoff).toISOString().split('T')[0]
+    
+    const filteredDailyStats: Record<string, DailyStatistics> = {}
+    for (const [date, dayStats] of Object.entries(stats.dailyStats)) {
+      if (date >= cutoffDate) {
+        filteredDailyStats[date] = dayStats as DailyStatistics
+      }
+    }
+    
+    if (Object.keys(filteredDailyStats).length !== Object.keys(stats.dailyStats).length) {
+      stats.dailyStats = filteredDailyStats
+      this.store!.set('statistics', stats)
+    }
   }
 
   // ==================== System Prompts Operations ====================
@@ -1195,16 +1468,20 @@ class StoreManager {
     })
     const config = this.store!.get('config') || DEFAULT_CONFIG
     const logs = this.store!.get('logs') || []
+    const requestLogs = this.store!.get('requestLogs') || []
     const systemPrompts = this.store!.get('systemPrompts') || []
     const sessions = this.store!.get('sessions') || []
+    const statistics = this.store!.get('statistics') || DEFAULT_STATISTICS
     
     return {
       providers,
       accounts,
       config,
       logs,
+      requestLogs,
       systemPrompts,
       sessions,
+      statistics,
     }
   }
 

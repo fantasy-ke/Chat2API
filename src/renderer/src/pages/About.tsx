@@ -91,7 +91,7 @@ export function About() {
     {
       label: t('about.documentation'),
       icon: FileText,
-      url: 'https://github.com/xiaoY233/Chat2API#readme',
+      url: 'https://chat2api-doc.vercel.app/',
     },
     {
       label: t('about.reportIssue'),

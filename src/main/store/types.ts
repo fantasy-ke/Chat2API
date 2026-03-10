@@ -354,6 +354,105 @@ export interface LogEntry {
 }
 
 /**
+ * Request Log Entry Interface
+ * Detailed log for API request tracking
+ */
+export interface RequestLogEntry {
+  /** Log ID */
+  id: string
+  /** Timestamp */
+  timestamp: number
+  /** Request status */
+  status: 'success' | 'error'
+  /** HTTP status code */
+  statusCode: number
+  
+  /** HTTP method */
+  method: string
+  /** Request URL path */
+  url: string
+  /** Requested model name */
+  model: string
+  /** Actual model used (after mapping) */
+  actualModel?: string
+  
+  /** Provider ID */
+  providerId?: string
+  /** Provider name */
+  providerName?: string
+  /** Account ID */
+  accountId?: string
+  /** Account name */
+  accountName?: string
+  
+  /** Request body JSON string */
+  requestBody?: string
+  /** User input extracted from messages (truncated to 200 chars) */
+  userInput?: string
+  
+  /** Response status code */
+  responseStatus: number
+  /** Response preview (truncated) */
+  responsePreview?: string
+  
+  /** Request latency in milliseconds */
+  latency: number
+  /** Whether streaming request */
+  isStream: boolean
+  
+  /** Error message */
+  errorMessage?: string
+  /** Error stack trace */
+  errorStack?: string
+}
+
+/**
+ * Daily Statistics Interface
+ * Statistics for a single day
+ */
+export interface DailyStatistics {
+  /** Date string (YYYY-MM-DD) */
+  date: string
+  /** Total requests */
+  totalRequests: number
+  /** Successful requests */
+  successRequests: number
+  /** Failed requests */
+  failedRequests: number
+  /** Total latency (for average calculation) */
+  totalLatency: number
+  /** Model usage count */
+  modelUsage: Record<string, number>
+  /** Provider usage count */
+  providerUsage: Record<string, number>
+}
+
+/**
+ * Persistent Statistics Interface
+ * Statistics that persist across app restarts
+ */
+export interface PersistentStatistics {
+  /** Total requests (all time) */
+  totalRequests: number
+  /** Successful requests (all time) */
+  successRequests: number
+  /** Failed requests (all time) */
+  failedRequests: number
+  /** Total latency for average calculation */
+  totalLatency: number
+  /** Last updated timestamp */
+  lastUpdated: number
+  /** Model usage count */
+  modelUsage: Record<string, number>
+  /** Provider usage count */
+  providerUsage: Record<string, number>
+  /** Account usage count */
+  accountUsage: Record<string, number>
+  /** Daily statistics (keyed by date string) */
+  dailyStats: Record<string, DailyStatistics>
+}
+
+/**
  * System Prompt Type Enum
  */
 export type PromptType = 'general' | 'tool-use' | 'agent' | 'translation' | 'search'
@@ -416,10 +515,14 @@ export interface StoreSchema {
   config: AppConfig
   /** Log entries */
   logs: LogEntry[]
+  /** Request log entries */
+  requestLogs: RequestLogEntry[]
   /** System prompts */
   systemPrompts: SystemPrompt[]
   /** Session records */
   sessions: SessionRecord[]
+  /** Persistent statistics */
+  statistics: PersistentStatistics
 }
 
 /**
@@ -431,6 +534,21 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
   maxMessagesPerSession: 50,
   deleteAfterTimeout: true,
   maxSessionsPerAccount: 3,
+}
+
+/**
+ * Default Persistent Statistics
+ */
+export const DEFAULT_STATISTICS: PersistentStatistics = {
+  totalRequests: 0,
+  successRequests: 0,
+  failedRequests: 0,
+  totalLatency: 0,
+  lastUpdated: Date.now(),
+  modelUsage: {},
+  providerUsage: {},
+  accountUsage: {},
+  dailyStats: {},
 }
 
 /**

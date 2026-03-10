@@ -36,15 +36,20 @@ export function QuickActions({
       </CardHeader>
       <CardContent className="space-y-3">
         <Button
-          className="w-full justify-start"
-          variant={proxyRunning ? 'destructive' : 'default'}
+          className={cn(
+            "w-full justify-start",
+            proxyRunning 
+              ? "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-white dark:hover:bg-orange-900/50"
+              : "dark:text-white"
+          )}
+          variant={proxyRunning ? 'secondary' : 'default'}
           onClick={onToggleProxy}
           disabled={isLoading}
         >
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : proxyRunning ? (
-            <Square className="mr-2 h-4 w-4" />
+            <Square className="mr-2 h-4 w-4 text-orange-700 dark:text-orange-400" />
           ) : (
             <Play className="mr-2 h-4 w-4" />
           )}

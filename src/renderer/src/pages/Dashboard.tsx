@@ -89,8 +89,8 @@ export function Dashboard() {
   }, [navigate])
 
   const handleActivityClick = useCallback((item: { id: string; type: string; title: string }) => {
-    console.log('Activity clicked:', item)
-  }, [])
+    navigate('/logs?tab=request&highlight=' + item.id)
+  }, [navigate])
 
   const formatUptime = (uptime: number) => {
     const hours = Math.floor(uptime / 3600)
@@ -204,39 +204,6 @@ export function Dashboard() {
           onItemClick={handleActivityClick}
         />
       </div>
-
-      {proxyStatus && (
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    'h-3 w-3 rounded-full',
-                    proxyStatus.isRunning ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                  )}
-                />
-                <span className="font-medium">
-                  {proxyStatus.isRunning ? t('dashboard.proxyRunning') : t('dashboard.proxyStopped')}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {t('dashboard.port')}: {proxyStatus.port}
-              </div>
-              {proxyStatus.isRunning && (
-                <>
-                  <div className="text-sm text-muted-foreground">
-                    {t('dashboard.runtime')}: {formatUptime(proxyStatus.uptime)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {t('dashboard.activeConnections')}: {proxyStatus.connections}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -13,18 +13,25 @@ export interface ActivityItem {
   timestamp: number
   providerName?: string
   modelName?: string
+  latency?: number
+  statusCode?: number
 }
 
 export interface RecentActivityProps {
   activities: ActivityItem[]
   onItemClick?: (item: ActivityItem) => void
   className?: string
+  maxVisible?: number
 }
+
+const ITEM_HEIGHT = 88
+const GAP = 8
 
 export function RecentActivity({
   activities,
   onItemClick,
   className,
+  maxVisible = 7,
 }: RecentActivityProps) {
   const { t } = useTranslation()
 
@@ -61,102 +68,99 @@ export function RecentActivity({
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
-    if (minutes < 1) return 'Just now'
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${days}d ago`
+    if (minutes < 1) return t('dashboard.justNow')
+    if (minutes < 60) return t('dashboard.minutesAgo', { count: minutes })
+    if (hours < 24) return t('dashboard.hoursAgo', { count: hours })
+    return t('dashboard.daysAgo', { count: days })
   }
 
-  const getTypeLabel = (type: ActivityItem['type']) => {
-    switch (type) {
-      case 'success':
-        return t('common.success')
-      case 'error':
-        return t('common.error')
-      case 'warning':
-        return t('common.warning')
-      default:
-        return t('logs.info')
-    }
+  const formatLatency = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`
+    return `${(ms / 1000).toFixed(2)}s`
   }
+
+  const visibleActivities = activities.slice(0, maxVisible)
+  const scrollHeight = ITEM_HEIGHT * maxVisible + GAP * (maxVisible - 1)
 
   return (
     <Card className={cn('h-full flex flex-col', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
+      <CardHeader className="pb-2 flex-shrink-0">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="h-7 w-7 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
             <History className="h-4 w-4 text-[var(--accent-primary)]" />
           </div>
           {t('dashboard.recentActivity')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0">
-        <ScrollArea className="h-[520px] pr-4">
-          {activities.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              {t('dashboard.noActivity')}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities.map((item) => (
+      <CardContent className="flex-1 min-h-0 p-4 pt-0">
+        {activities.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            {t('dashboard.noActivity')}
+          </div>
+        ) : (
+          <ScrollArea className="pr-2" style={{ height: scrollHeight }}>
+            <div className="space-y-2">
+              {visibleActivities.map((item) => (
                 <div
                   key={item.id}
                   className={cn(
-                    'flex items-start gap-3 p-3 rounded-xl transition-all duration-200',
-                    'bg-[var(--glass-bg)] border border-[var(--glass-border)]',
-                    onItemClick && 'cursor-pointer hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-hover)] hover:-translate-y-0.5'
+                    'p-3 rounded-lg transition-all duration-200',
+                    'bg-muted/30 hover:bg-muted/50 hover:-translate-y-0.5',
+                    onItemClick && 'cursor-pointer'
                   )}
                   onClick={() => onItemClick?.(item)}
                 >
-                  <div
-                    className={cn(
-                      'mt-1.5 h-2 w-2 rounded-full flex-shrink-0',
-                      getTypeColor(item.type)
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          'h-2 w-2 rounded-full',
+                          getTypeColor(item.type)
+                        )}
+                      />
                       <span className="font-medium text-sm truncate">
                         {item.title}
                       </span>
-                      <Badge
-                        variant={getTypeBadge(item.type) as "default" | "secondary" | "destructive" | "outline"}
-                        className="text-xs"
-                      >
-                        {getTypeLabel(item.type)}
-                      </Badge>
                     </div>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        {item.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                      <span>{formatTime(item.timestamp)}</span>
-                      {item.providerName && (
-                        <>
-                          <span>·</span>
-                          <span>{item.providerName}</span>
-                        </>
+                    <div className="flex items-center gap-2">
+                      {item.statusCode && (
+                        <Badge
+                          variant={getTypeBadge(item.type) as "default" | "secondary" | "destructive" | "outline"}
+                          className="text-xs"
+                        >
+                          {item.statusCode}
+                        </Badge>
                       )}
-                      {item.modelName && (
-                        <>
-                          <span>·</span>
-                          <span className="truncate max-w-[100px]">
-                            {item.modelName}
-                          </span>
-                        </>
+                      {onItemClick && (
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
                     </div>
                   </div>
-                  {onItemClick && (
-                    <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground mb-1 truncate pl-4">
+                      {item.description}
+                    </p>
                   )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground pl-4">
+                    <span>{formatTime(item.timestamp)}</span>
+                    {item.providerName && (
+                      <>
+                        <span>·</span>
+                        <span>{item.providerName}</span>
+                      </>
+                    )}
+                    {item.latency !== undefined && (
+                      <>
+                        <span>·</span>
+                        <span>{formatLatency(item.latency)}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-        </ScrollArea>
+          </ScrollArea>
+        )}
       </CardContent>
     </Card>
   )

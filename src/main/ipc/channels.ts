@@ -56,6 +56,16 @@ export const IpcChannels = {
   LOGS_GET_BY_ID: 'logs:getById',
   LOGS_NEW_LOG: 'logs:newLog',
 
+  REQUEST_LOGS_GET: 'requestLogs:get',
+  REQUEST_LOGS_GET_BY_ID: 'requestLogs:getById',
+  REQUEST_LOGS_GET_STATS: 'requestLogs:getStats',
+  REQUEST_LOGS_GET_TREND: 'requestLogs:getTrend',
+  REQUEST_LOGS_CLEAR: 'requestLogs:clear',
+  REQUEST_LOGS_NEW: 'requestLogs:new',
+
+  STATISTICS_GET: 'statistics:get',
+  STATISTICS_GET_TODAY: 'statistics:getToday',
+
   APP_GET_VERSION: 'app:getVersion',
   APP_MINIMIZE: 'app:minimize',
   APP_MAXIMIZE: 'app:maximize',

@@ -6,19 +6,19 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useProxyStore } from '@/stores/proxyStore'
 import { useToast } from '@/hooks/use-toast'
-import type { ProxyStatistics } from '@/types/electron'
+import { cn } from '@/lib/utils'
 import {
   Activity,
   Play,
   Square,
   RefreshCw,
-  Clock,
-  Zap,
-  TrendingUp,
   CheckCircle2,
   XCircle,
   BarChart3,
   Timer,
+  TrendingUp,
+  Cpu,
+  Server,
 } from 'lucide-react'
 
 interface ProxyStatusProps {
@@ -94,23 +94,6 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
     setIsRefreshing(false)
   }
 
-  const handleResetStatistics = async () => {
-    try {
-      await window.electronAPI.invoke('proxy:resetStatistics')
-      await fetchProxyStatistics()
-      toast({
-        title: t('common.success'),
-        description: 'Statistics have been reset',
-      })
-    } catch (error) {
-      toast({
-        title: t('common.error'),
-        description: 'Unable to reset statistics',
-        variant: 'destructive',
-      })
-    }
-  }
-
   const formatUptime = (ms: number): string => {
     const seconds = Math.floor(ms / 1000)
     const minutes = Math.floor(seconds / 60)
@@ -128,12 +111,47 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
     return `${(ms / 1000).toFixed(2)}s`
   }
 
-  const getSuccessRate = (stats: ProxyStatistics): number => {
-    if (stats.totalRequests === 0) return 0
-    return Math.round((stats.successRequests / stats.totalRequests) * 100)
+  const getSuccessRate = (): number => {
+    const total = proxyStatistics?.totalRequests ?? 0
+    const success = proxyStatistics?.successRequests ?? 0
+    if (total === 0) return 0
+    return Math.round((success / total) * 100)
   }
 
   const isRunning = proxyStatus?.isRunning ?? false
+
+  const statsCards = [
+    {
+      title: t('dashboard.totalRequests'),
+      value: proxyStatistics?.totalRequests ?? 0,
+      icon: TrendingUp,
+      color: 'text-primary',
+    },
+    {
+      title: t('common.success'),
+      value: proxyStatistics?.successRequests ?? 0,
+      icon: CheckCircle2,
+      color: 'text-green-500',
+    },
+    {
+      title: t('common.error'),
+      value: proxyStatistics?.failedRequests ?? 0,
+      icon: XCircle,
+      color: 'text-destructive',
+    },
+    {
+      title: t('dashboard.successRate'),
+      value: `${getSuccessRate()}%`,
+      icon: Activity,
+      color: 'text-blue-500',
+    },
+    {
+      title: t('dashboard.avgLatency'),
+      value: formatLatency(proxyStatistics?.avgLatency ?? 0),
+      icon: Timer,
+      color: 'text-amber-500',
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -174,7 +192,7 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
           <CardDescription>{t('proxy.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">{t('dashboard.port')}</p>
               <p className="text-2xl font-bold">{proxyStatus?.port ?? '-'}</p>
@@ -187,17 +205,11 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
                   : '-'}
               </p>
             </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">{t('dashboard.activeConnections')}</p>
-              <p className="text-2xl font-bold">
-                {proxyStatistics?.activeConnections ?? 0}
-              </p>
-            </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-3 pt-4">
             {!isRunning ? (
-              <Button onClick={handleStart} disabled={isLoading} className="flex-1">
+              <Button onClick={handleStart} disabled={isLoading}>
                 <Play className="h-4 w-4 mr-2" />
                 {t('dashboard.startProxy')}
               </Button>
@@ -205,8 +217,8 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
               <Button
                 onClick={handleStop}
                 disabled={isLoading}
-                variant="destructive"
-                className="flex-1"
+                variant="secondary"
+                className="bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-400 dark:hover:bg-orange-900/50"
               >
                 <Square className="h-4 w-4 mr-2" />
                 {t('dashboard.stopProxy')}
@@ -218,152 +230,107 @@ export function ProxyStatus({ onStatusChange }: ProxyStatusProps) {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <CardTitle>{t('logs.title')}</CardTitle>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetStatistics}
-            >
-              {t('common.reset')}
-            </Button>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <CardTitle>{t('logs.title')}</CardTitle>
           </div>
           <CardDescription>{t('proxy.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{t('dashboard.totalRequests')}</span>
-              </div>
-              <p className="text-2xl font-bold">
-                {proxyStatistics?.totalRequests ?? 0}
-              </p>
-            </div>
-            
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-muted-foreground">{t('common.success')}</span>
-              </div>
-              <p className="text-2xl font-bold text-green-500">
-                {proxyStatistics?.successRequests ?? 0}
-              </p>
-            </div>
-            
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <XCircle className="h-4 w-4 text-destructive" />
-                <span className="text-sm text-muted-foreground">{t('common.error')}</span>
-              </div>
-              <p className="text-2xl font-bold text-destructive">
-                {proxyStatistics?.failedRequests ?? 0}
-              </p>
-            </div>
-            
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                <span className="text-sm text-muted-foreground">Req/min</span>
-              </div>
-              <p className="text-2xl font-bold text-amber-500">
-                {proxyStatistics?.requestsPerMinute ?? 0}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t('dashboard.successRate')}</span>
-              <span className="text-sm font-medium">
-                {getSuccessRate(proxyStatistics ?? {
-                  totalRequests: 0,
-                  successRequests: 0,
-                  failedRequests: 0,
-                  avgLatency: 0,
-                  requestsPerMinute: 0,
-                  activeConnections: 0,
-                  modelUsage: {},
-                  providerUsage: {},
-                  accountUsage: {},
-                })}%
-              </span>
-            </div>
-            <Progress
-              value={getSuccessRate(proxyStatistics ?? {
-                totalRequests: 0,
-                successRequests: 0,
-                failedRequests: 0,
-                avgLatency: 0,
-                requestsPerMinute: 0,
-                activeConnections: 0,
-                modelUsage: {},
-                providerUsage: {},
-                accountUsage: {},
-              })}
-              className="h-2"
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Timer className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{t('dashboard.avgLatency')}</span>
-              </div>
-              <p className="text-xl font-bold">
-                {formatLatency(proxyStatistics?.avgLatency ?? 0)}
-              </p>
-            </div>
-            
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{t('dashboard.activeConnections')}</span>
-              </div>
-              <p className="text-xl font-bold">
-                {proxyStatistics?.activeConnections ?? 0}
-              </p>
-            </div>
-          </div>
-
-          {proxyStatistics?.modelUsage && Object.keys(proxyStatistics.modelUsage).length > 0 && (
-            <div className="space-y-3 pt-4 border-t">
-              <h4 className="text-sm font-medium">{t('providers.models')} Usage</h4>
-              <div className="space-y-2">
-                {(Object.entries(proxyStatistics.modelUsage) as [string, number][])
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 5)
-                  .map(([model, count]) => (
-                    <div key={model} className="flex items-center justify-between">
-                      <code className="text-sm">{model}</code>
-                      <Badge variant="secondary">{count}</Badge>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-5">
+            {statsCards.map((stat, index) => (
+              <Card
+                key={index}
+                hover
+                className="bg-muted/30 border-0 shadow-none"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-8 w-8 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
+                      <stat.icon className={cn('h-4 w-4', stat.color)} />
                     </div>
-                  ))}
-              </div>
-            </div>
-          )}
+                  </div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stat.title}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-          {proxyStatistics?.providerUsage && Object.keys(proxyStatistics.providerUsage).length > 0 && (
-            <div className="space-y-3 pt-4 border-t">
-              <h4 className="text-sm font-medium">{t('providers.title')} Usage</h4>
-              <div className="space-y-2">
-                {(Object.entries(proxyStatistics.providerUsage) as [string, number][])
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 5)
-                  .map(([providerId, count]) => (
-                    <div key={providerId} className="flex items-center justify-between">
-                      <span className="text-sm">{providerId}</span>
-                      <Badge variant="secondary">{count}</Badge>
-                    </div>
-                  ))}
-              </div>
+          {(proxyStatistics?.modelUsage && Object.keys(proxyStatistics.modelUsage).length > 0) ||
+           (proxyStatistics?.providerUsage && Object.keys(proxyStatistics.providerUsage).length > 0) ? (
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              {proxyStatistics?.modelUsage && Object.keys(proxyStatistics.modelUsage).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    <h4 className="text-sm font-medium">{t('providers.modelUsage')}</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(Object.entries(proxyStatistics.modelUsage) as [string, number][])
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 5)
+                      .map(([model, count]) => {
+                        const total = Object.values(proxyStatistics.modelUsage).reduce((a, b) => a + b, 0)
+                        const percentage = Math.round((count / total) * 100)
+                        return (
+                          <div 
+                            key={model} 
+                            className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                              <code className="text-xs truncate" title={model}>{model}</code>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                                {count}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground w-8 text-right">{percentage}%</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {proxyStatistics?.providerUsage && Object.keys(proxyStatistics.providerUsage).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Server className="h-4 w-4 text-primary" />
+                    <h4 className="text-sm font-medium">{t('providers.providerDistribution')}</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(Object.entries(proxyStatistics.providerUsage) as [string, number][])
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 5)
+                      .map(([providerId, count]) => {
+                        const total = Object.values(proxyStatistics.providerUsage).reduce((a, b) => a + b, 0)
+                        const percentage = Math.round((count / total) * 100)
+                        return (
+                          <div 
+                            key={providerId} 
+                            className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                              <span className="text-sm truncate" title={providerId}>{providerId}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                                {count}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground w-8 text-right">{percentage}%</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

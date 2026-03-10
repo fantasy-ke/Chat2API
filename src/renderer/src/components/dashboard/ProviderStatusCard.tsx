@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { Server, Wifi, WifiOff, AlertCircle } from 'lucide-react'
@@ -22,6 +21,9 @@ export interface ProviderStatusCardProps {
   providers: ProviderStats[]
   className?: string
 }
+
+const ITEM_HEIGHT = 88
+const GAP = 8
 
 export function ProviderStatusCard({ providers, className }: ProviderStatusCardProps) {
   const { t } = useTranslation()
@@ -75,75 +77,72 @@ export function ProviderStatusCard({ providers, className }: ProviderStatusCardP
     return Math.round((success / total) * 100)
   }
 
+  const scrollHeight = ITEM_HEIGHT * 7 + GAP * 6
+
   return (
     <Card className={cn('h-full flex flex-col', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
+      <CardHeader className="pb-2 flex-shrink-0">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="h-7 w-7 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center">
             <Server className="h-4 w-4 text-[var(--accent-primary)]" />
           </div>
           {t('dashboard.providerStats')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0">
-        <ScrollArea className="h-[520px] pr-4">
-          <div className="space-y-4">
-            {providers.length === 0 ? (
-              <div className="text-center text-muted-foreground py-4">
-                {t('providers.noProvidersFound')}
-              </div>
-            ) : (
-              providers.map((provider) => {
+      <CardContent className="flex-1 min-h-0 p-4 pt-0">
+        {providers.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            {t('providers.noProvidersFound')}
+          </div>
+        ) : (
+          <ScrollArea className="pr-2" style={{ height: scrollHeight }}>
+            <div className="space-y-2">
+              {providers.map((provider) => {
                 const successRate = getSuccessRate(
                   provider.successCount,
                   provider.requestCount
                 )
-                const quotaPercentage =
-                  provider.quotaTotal && provider.quotaUsed
-                    ? Math.round((provider.quotaUsed / provider.quotaTotal) * 100)
-                    : undefined
 
                 return (
                   <div
                     key={provider.id}
-                    className="flex items-start justify-between p-3 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] transition-all duration-200 hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-hover)] hover:-translate-y-0.5"
+                    className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 hover:-translate-y-0.5 transition-all duration-200"
                   >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          'mt-1 h-2 w-2 rounded-full',
-                          getStatusColor(provider.status)
-                        )}
-                      />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{provider.name}</span>
-                          <Badge variant={getStatusBadge(provider.status) as "default" | "secondary" | "destructive"}>
-                            {getStatusIcon(provider.status)}
-                            <span className="ml-1">{getStatusText(provider.status)}</span>
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t('dashboard.totalRequests')}: {provider.requestCount.toLocaleString()} |
-                          {t('dashboard.successRate')}: {successRate}%
-                          {provider.latency && ` | ${t('providers.latency')}: ${provider.latency}ms`}
-                        </div>
-                        {quotaPercentage !== undefined && (
-                          <div className="w-32">
-                            <Progress value={quotaPercentage} className="h-1.5" />
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Quota: {provider.quotaUsed?.toLocaleString()} / {provider.quotaTotal?.toLocaleString()}
-                            </div>
-                          </div>
-                        )}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            'h-2 w-2 rounded-full',
+                            getStatusColor(provider.status)
+                          )}
+                        />
+                        <span className="font-medium text-sm">{provider.name}</span>
+                      </div>
+                      <Badge variant={getStatusBadge(provider.status) as "default" | "secondary" | "destructive"} className="text-xs">
+                        {getStatusIcon(provider.status)}
+                        <span className="ml-1">{getStatusText(provider.status)}</span>
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">{t('dashboard.totalRequests')}</span>
+                        <p className="font-medium">{provider.requestCount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('dashboard.successRate')}</span>
+                        <p className="font-medium text-green-500">{successRate}%</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('providers.latency')}</span>
+                        <p className="font-medium">{provider.latency ? `${provider.latency}ms` : '-'}</p>
                       </div>
                     </div>
                   </div>
                 )
-              })
-            )}
-          </div>
-        </ScrollArea>
+              })}
+            </div>
+          </ScrollArea>
+        )}
       </CardContent>
     </Card>
   )

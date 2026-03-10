@@ -424,6 +424,42 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
     return storeManager.getLogById(id)
   })
 
+  // ==================== Request Logs Handlers ====================
+
+  ipcMain.handle(IpcChannels.REQUEST_LOGS_GET, async (_, filter?: {
+    status?: 'success' | 'error'
+    providerId?: string
+    limit?: number
+  }) => {
+    return storeManager.getRequestLogs(filter?.limit, filter)
+  })
+
+  ipcMain.handle(IpcChannels.REQUEST_LOGS_GET_BY_ID, async (_, id: string) => {
+    return storeManager.getRequestLogById(id)
+  })
+
+  ipcMain.handle(IpcChannels.REQUEST_LOGS_GET_STATS, async () => {
+    return storeManager.getRequestLogStats()
+  })
+
+  ipcMain.handle(IpcChannels.REQUEST_LOGS_GET_TREND, async (_, days?: number) => {
+    return storeManager.getRequestLogTrend(days)
+  })
+
+  ipcMain.handle(IpcChannels.REQUEST_LOGS_CLEAR, async (): Promise<void> => {
+    storeManager.clearRequestLogs()
+  })
+
+  // ==================== Statistics Handlers ====================
+
+  ipcMain.handle(IpcChannels.STATISTICS_GET, async () => {
+    return storeManager.getStatistics()
+  })
+
+  ipcMain.handle(IpcChannels.STATISTICS_GET_TODAY, async () => {
+    return storeManager.getTodayStatistics()
+  })
+
   ipcMain.handle(IpcChannels.APP_GET_VERSION, async (): Promise<string> => {
     return app.getVersion()
   })

@@ -13,6 +13,8 @@ interface DashboardStats {
   accountsTrend: number
 }
 
+
+
 interface LogTrend {
   date: string
   total: number
@@ -61,6 +63,36 @@ const convertLogsToActivities = (logs: LogEntry[], providers: Provider[]): Activ
       timestamp: log.timestamp,
       providerName: provider?.name,
       modelName: log.data?.model as string | undefined,
+    }
+  })
+}
+
+interface RequestLogEntry {
+  id: string
+  timestamp: number
+  status: 'success' | 'error'
+  statusCode: number
+  model: string
+  providerId?: string
+  providerName?: string
+  modelName?: string
+  latency: number
+  userInput?: string
+  errorMessage?: string
+}
+
+const convertRequestLogsToActivities = (logs: RequestLogEntry[]): ActivityItem[] => {
+  return logs.slice(0, 10).map(log => {
+    return {
+      id: log.id,
+      type: log.status === 'success' ? 'success' : 'error',
+      title: log.model,
+      description: log.status === 'error' ? log.errorMessage : log.userInput?.slice(0, 100),
+      timestamp: log.timestamp,
+      providerName: log.providerName,
+      modelName: log.model,
+      latency: log.latency,
+      statusCode: log.statusCode,
     }
   })
 }
@@ -115,66 +147,83 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     try {
       const proxyStatusPromise = window.electronAPI?.proxy?.getStatus?.() ?? Promise.resolve(null)
       const statisticsPromise = window.electronAPI?.invoke?.('proxy:getStatistics') ?? Promise.resolve(null)
+      const persistentStatsPromise = window.electronAPI?.statistics?.get?.() ?? Promise.resolve(null)
       const providersPromise = window.electronAPI?.providers?.getAll?.() ?? Promise.resolve([])
       const accountsPromise = window.electronAPI?.accounts?.getAll?.() ?? Promise.resolve([])
       const providerStatusPromise = window.electronAPI?.providers?.checkAllStatus?.() ?? Promise.resolve({})
       const logsPromise = window.electronAPI?.logs?.get?.({ limit: 10 }) ?? Promise.resolve([])
       const trendPromise = window.electronAPI?.logs?.getTrend?.(7) ?? Promise.resolve([])
+      const requestLogTrendPromise = window.electronAPI?.requestLogs?.getTrend?.(7) ?? Promise.resolve([])
 
-      const [proxyStatus, statistics, providers, accounts, providerStatuses, logs, trends] = await Promise.all([
+      const [proxyStatus, statistics, persistentStats, providers, accounts, providerStatuses, logs, trends, requestLogTrends] = await Promise.all([
         proxyStatusPromise,
         statisticsPromise,
+        persistentStatsPromise,
         providersPromise,
         accountsPromise,
         providerStatusPromise,
         logsPromise,
         trendPromise,
-      ]) as [ProxyStatus | null, ProxyStatistics | null, Provider[], Account[], Record<string, ProviderCheckResult>, LogEntry[], LogTrend[]]
+        requestLogTrendPromise,
+      ]) as [ProxyStatus | null, ProxyStatistics | null, any, Provider[], Account[], Record<string, ProviderCheckResult>, LogEntry[], LogTrend[], any[]]
 
       setProxyStatus(proxyStatus)
       setStatistics(statistics)
 
-      const totalRequests = statistics?.totalRequests ?? 0
-      const successRequests = statistics?.successRequests ?? 0
+      const totalRequests = persistentStats?.totalRequests ?? statistics?.totalRequests ?? 0
+      const successRequests = persistentStats?.successRequests ?? statistics?.successRequests ?? 0
       const successRate = totalRequests > 0
         ? Math.round((successRequests / totalRequests) * 100)
         : 0
-      const avgLatency = Math.round(statistics?.avgLatency ?? 0)
+      
+      const today = new Date().toISOString().split('T')[0]
+      const todayStats = persistentStats?.dailyStats?.[today]
+      const avgLatency = todayStats && todayStats.successRequests > 0
+        ? Math.round(todayStats.totalLatency / todayStats.successRequests)
+        : (successRequests > 0
+          ? Math.round((persistentStats?.totalLatency ?? 0) / successRequests)
+          : Math.round(statistics?.avgLatency ?? 0))
+      
       const activeAccounts = accounts?.filter((a: Account) => a.status === 'active').length ?? 0
 
-      // Calculate trends based on log data (compare today vs yesterday)
-      const today = new Date().toISOString().split('T')[0]
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const todayTrend = trends.find((t: LogTrend) => t.date === today)
-      const yesterdayTrend = trends.find((t: LogTrend) => t.date === yesterday)
+      const useRequestLogTrends = requestLogTrends && requestLogTrends.length > 0
+      const trendData = useRequestLogTrends ? requestLogTrends : trends
 
-      const todayRequests = todayTrend?.total ?? 0
-      const yesterdayRequests = yesterdayTrend?.total ?? 0
-      const requestsTrend = yesterdayRequests > 0
-        ? Math.round(((todayRequests - yesterdayRequests) / yesterdayRequests) * 100)
-        : 0
+      const todayTrend = trendData.find((t: any) => t.date === today)
+      const yesterdayTrend = trendData.find((t: any) => t.date === yesterday)
 
-      const todaySuccess = todayTrend?.info ?? 0
-      const yesterdaySuccess = yesterdayTrend?.info ?? 0
-      const todayError = todayTrend?.error ?? 0 + (todayTrend?.warn ?? 0)
-      const yesterdayError = yesterdayTrend?.error ?? 0 + (yesterdayTrend?.warn ?? 0)
+      const todayRequests = todayTrend?.total ?? todayTrend?.info ?? 0
+      const yesterdayRequests = yesterdayTrend?.total ?? yesterdayTrend?.info ?? 0
+      
+      let requestsTrend = 0
+      if (yesterdayRequests > 0) {
+        requestsTrend = Math.round(((todayRequests - yesterdayRequests) / yesterdayRequests) * 100)
+      } else if (todayRequests > 0) {
+        requestsTrend = 100
+      }
+
+      const todaySuccess = useRequestLogTrends ? (todayTrend?.success ?? 0) : (todayTrend?.info ?? 0)
+      const yesterdaySuccess = useRequestLogTrends ? (yesterdayTrend?.success ?? 0) : (yesterdayTrend?.info ?? 0)
+      const todayError = useRequestLogTrends 
+        ? (todayTrend?.error ?? 0) 
+        : ((todayTrend?.error ?? 0) + (todayTrend?.warn ?? 0))
+      const yesterdayError = useRequestLogTrends 
+        ? (yesterdayTrend?.error ?? 0) 
+        : ((yesterdayTrend?.error ?? 0) + (yesterdayTrend?.warn ?? 0))
       const todaySuccessRate = todayRequests > 0 ? Math.round((todaySuccess / todayRequests) * 100) : 0
       const yesterdaySuccessRate = yesterdayRequests > 0 ? Math.round((yesterdaySuccess / yesterdayRequests) * 100) : 0
-      const successRateTrend = yesterdaySuccessRate > 0
-        ? todaySuccessRate - yesterdaySuccessRate
+      const successRateTrend = yesterdaySuccessRate > 0 ? todaySuccessRate - yesterdaySuccessRate : 0
+
+      const todayAvgLatency = todayTrend?.avgLatency ?? 0
+      const yesterdayAvgLatency = yesterdayTrend?.avgLatency ?? 0
+      const latencyTrend = yesterdayAvgLatency > 0 && todayAvgLatency > 0
+        ? Math.round(((todayAvgLatency - yesterdayAvgLatency) / yesterdayAvgLatency) * 100)
         : 0
 
-      // For latency trend, we use a simple estimate based on error rate changes
-      const latencyTrend = yesterdayRequests > 0 && todayRequests > 0
-        ? Math.round(((todayError / todayRequests) - (yesterdayError / yesterdayRequests)) * 100)
-        : 0
-
-      // For accounts trend, compare current active accounts with total accounts
       const totalAccounts = accounts?.length ?? 0
-      const accountsTrend = totalAccounts > 0
-        ? Math.round(((activeAccounts - totalAccounts * 0.8) / (totalAccounts * 0.8)) * 100)
-        : 0
+      const accountsTrend = 0
 
       setStats({
         totalRequests,
@@ -187,24 +236,55 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         accountsTrend,
       })
 
+      const providerUsage = persistentStats?.providerUsage ?? {}
+      const requestLogsPromise = window.electronAPI?.requestLogs?.get?.({ limit: 100 }) ?? Promise.resolve([])
+      const requestLogs = await requestLogsPromise as RequestLogEntry[]
+      
+      const providerSuccessCount: Record<string, number> = {}
+      const providerTotalCount: Record<string, number> = {}
+      for (const log of requestLogs) {
+        if (log.providerId) {
+          providerTotalCount[log.providerId] = (providerTotalCount[log.providerId] || 0) + 1
+          if (log.status === 'success') {
+            providerSuccessCount[log.providerId] = (providerSuccessCount[log.providerId] || 0) + 1
+          }
+        }
+      }
+      
       const providerStats: ProviderStats[] = (providers ?? []).map((provider: Provider) => {
         const status = providerStatuses?.[provider.id]
-        const providerAccounts = accounts?.filter((a: Account) => a.providerId === provider.id) ?? []
-        const accountUsage = providerAccounts.reduce((sum: number, a: Account) => sum + (a.requestCount ?? 0), 0)
+        const usage = providerUsage[provider.id] ?? 0
+        const successCount = providerSuccessCount[provider.id] ?? usage
+        const totalCount = providerTotalCount[provider.id] ?? usage
         
         return {
           id: provider.id,
           name: provider.name,
           status: status?.status ?? 'unknown',
-          requestCount: accountUsage,
-          successCount: Math.floor(accountUsage * 0.9),
+          requestCount: totalCount,
+          successCount: successCount,
           latency: status?.latency,
         }
       })
       setProviders(providerStats)
 
-      setActivities(convertLogsToActivities(logs, providers ?? []))
-      setChartData(convertTrendToChartData(trends))
+      const recentRequestLogs = requestLogs.slice(0, 10)
+      if (recentRequestLogs && recentRequestLogs.length > 0) {
+        setActivities(convertRequestLogsToActivities(recentRequestLogs))
+      } else {
+        setActivities(convertLogsToActivities(logs, providers ?? []))
+      }
+      
+      if (useRequestLogTrends) {
+        setChartData(requestLogTrends.map((t: any) => ({
+          time: t.date.slice(5),
+          requests: t.total,
+          success: t.success,
+          failed: t.error,
+        })))
+      } else {
+        setChartData(convertTrendToChartData(trends))
+      }
 
       set({ lastUpdated: Date.now() })
     } catch (error) {

@@ -51,7 +51,11 @@
     "runtime": "Runtime",
     "vsYesterday": "vs yesterday",
     "hours": "hours",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   },
   "providers": {
     "title": "Provider Management",
@@ -78,6 +82,8 @@
     "credentialFieldsHelp": "Click to add or remove credential fields",
     "accounts": "Accounts",
     "accountManagement": "Accounts",
+    "modelUsage": "Model Usage",
+    "providerDistribution": "Provider Distribution",
     "addAccount": "Add Account",
     "editAccount": "Edit Account",
     "deleteAccount": "Delete Account",
@@ -496,7 +502,7 @@
     "timestamp": "Timestamp",
     "message": "Message",
     "source": "Source",
-    "clearLogs": "Clear Logs",
+    "clearLogs": "Clear",
     "exportLogs": "Export",
     "filter": "Filter",
     "search": "Search logs...",
@@ -515,7 +521,16 @@
     "logsExportedAs": "Logs exported as {{format}} format",
     "exportFailed": "Export failed",
     "cannotExportLogs": "Cannot export logs",
-    "browserModeNotSupported": "Browser mode does not support export"
+    "browserModeNotSupported": "Browser mode does not support export",
+    "appLogs": "App Logs",
+    "requestLogs": "Request Logs",
+    "all": "All",
+    "noRequestLogs": "No request logs",
+    "todayRequests": "Today Requests",
+    "todaySuccess": "Today Success",
+    "todayErrors": "Today Errors",
+    "noRequestLogs": "No request logs",
+    "clearConfirmDesc": "Are you sure you want to clear all request logs? This action cannot be undone."
   },
   "settings": {
     "title": "Settings",

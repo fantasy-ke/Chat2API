@@ -51,7 +51,11 @@
     "runtime": "运行时间",
     "vsYesterday": "较昨日",
     "hours": "小时",
-    "minutes": "分钟"
+    "minutes": "分钟",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}}分钟前",
+    "hoursAgo": "{{count}}小时前",
+    "daysAgo": "{{count}}天前"
   },
   "providers": {
     "title": "供应商管理",
@@ -78,6 +82,8 @@
     "credentialFieldsHelp": "点击添加或移除凭证字段",
     "accounts": "账户",
     "accountManagement": "账户管理",
+    "modelUsage": "模型使用",
+    "providerDistribution": "供应商分布",
     "addAccount": "添加账户",
     "editAccount": "编辑账户",
     "deleteAccount": "删除账户",
@@ -496,7 +502,7 @@
     "timestamp": "时间",
     "message": "消息",
     "source": "来源",
-    "clearLogs": "清空日志",
+    "clearLogs": "清空",
     "exportLogs": "导出",
     "filter": "筛选",
     "search": "搜索日志...",
@@ -515,7 +521,14 @@
     "logsExportedAs": "日志已导出为 {{format}} 格式",
     "exportFailed": "导出失败",
     "cannotExportLogs": "无法导出日志",
-    "browserModeNotSupported": "浏览器模式不支持导出"
+    "browserModeNotSupported": "浏览器模式不支持导出",
+    "appLogs": "应用日志",
+    "requestLogs": "请求日志",
+    "all": "全部",
+    "noRequestLogs": "暂无请求日志",
+    "todayRequests": "今日请求",
+    "todaySuccess": "今日成功",
+    "todayErrors": "今日错误"
   },
   "settings": {
     "title": "设置",

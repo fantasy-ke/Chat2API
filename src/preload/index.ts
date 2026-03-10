@@ -258,6 +258,105 @@ const logsAPI = {
   },
 }
 
+interface RequestLogEntry {
+  id: string
+  timestamp: number
+  status: 'success' | 'error'
+  statusCode: number
+  method: string
+  url: string
+  model: string
+  actualModel?: string
+  providerId?: string
+  providerName?: string
+  accountId?: string
+  accountName?: string
+  requestBody?: string
+  userInput?: string
+  responseStatus: number
+  responsePreview?: string
+  latency: number
+  isStream: boolean
+  errorMessage?: string
+  errorStack?: string
+}
+
+interface RequestLogFilter {
+  status?: 'success' | 'error'
+  providerId?: string
+  limit?: number
+}
+
+interface RequestLogStats {
+  total: number
+  success: number
+  error: number
+  todayTotal: number
+  todaySuccess: number
+  todayError: number
+}
+
+interface RequestLogTrend {
+  date: string
+  total: number
+  success: number
+  error: number
+  avgLatency: number
+}
+
+const requestLogsAPI = {
+  get: (filter?: RequestLogFilter): Promise<RequestLogEntry[]> => 
+    ipcRenderer.invoke(IpcChannels.REQUEST_LOGS_GET, filter),
+  
+  getById: (id: string): Promise<RequestLogEntry | undefined> => 
+    ipcRenderer.invoke(IpcChannels.REQUEST_LOGS_GET_BY_ID, id),
+  
+  getStats: (): Promise<RequestLogStats> => 
+    ipcRenderer.invoke(IpcChannels.REQUEST_LOGS_GET_STATS),
+  
+  getTrend: (days?: number): Promise<RequestLogTrend[]> => 
+    ipcRenderer.invoke(IpcChannels.REQUEST_LOGS_GET_TREND, days),
+  
+  clear: (): Promise<void> => 
+    ipcRenderer.invoke(IpcChannels.REQUEST_LOGS_CLEAR),
+  
+  onNewLog: (callback: (log: RequestLogEntry) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, log: RequestLogEntry) => callback(log)
+    ipcRenderer.on(IpcChannels.REQUEST_LOGS_NEW, handler)
+    return () => ipcRenderer.removeListener(IpcChannels.REQUEST_LOGS_NEW, handler)
+  },
+}
+
+interface PersistentStatistics {
+  totalRequests: number
+  successRequests: number
+  failedRequests: number
+  totalLatency: number
+  lastUpdated: number
+  modelUsage: Record<string, number>
+  providerUsage: Record<string, number>
+  accountUsage: Record<string, number>
+  dailyStats: Record<string, DailyStatistics>
+}
+
+interface DailyStatistics {
+  date: string
+  totalRequests: number
+  successRequests: number
+  failedRequests: number
+  totalLatency: number
+  modelUsage: Record<string, number>
+  providerUsage: Record<string, number>
+}
+
+const statisticsAPI = {
+  get: (): Promise<PersistentStatistics> => 
+    ipcRenderer.invoke(IpcChannels.STATISTICS_GET),
+  
+  getToday: (): Promise<DailyStatistics> => 
+    ipcRenderer.invoke(IpcChannels.STATISTICS_GET_TODAY),
+}
+
 const appAPI = {
   getVersion: (): Promise<string> => 
     ipcRenderer.invoke(IpcChannels.APP_GET_VERSION),
@@ -376,6 +475,8 @@ const electronAPI = {
   accounts: accountsAPI,
   oauth: oauthAPI,
   logs: logsAPI,
+  requestLogs: requestLogsAPI,
+  statistics: statisticsAPI,
   app: appAPI,
   config: configAPI,
   prompts: promptsAPI,

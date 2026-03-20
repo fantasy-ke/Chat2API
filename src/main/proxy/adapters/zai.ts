@@ -731,13 +731,14 @@ export class ZaiStreamHandler {
         }
       }, 60000)
 
-      let stream = response
+      // Parameter is already response.data from forwarder.ts
+      const streamData = response
 
-      // Check if stream is a stream or JSON
-      console.log('[Z.ai] Non-stream: stream type:', typeof stream)
-      console.log('[Z.ai] Non-stream: stream.on type:', typeof stream?.on)
-      console.log('[Z.ai] Non-stream: stream is function?', typeof stream?.on === 'function')
-      if (stream && typeof stream.on === 'function') {
+      // Check if streamData is a stream or JSON
+      console.log('[Z.ai] Non-stream: streamData type:', typeof streamData)
+      console.log('[Z.ai] Non-stream: streamData.on type:', typeof streamData?.on)
+      console.log('[Z.ai] Non-stream: streamData is function?', typeof streamData?.on === 'function')
+      if (streamData && typeof streamData.on === 'function') {
         console.log('[Z.ai] Non-stream: taking stream path')
         // Stream response
         const parser = createParser({
@@ -772,21 +773,19 @@ export class ZaiStreamHandler {
           },
         })
 
-        stream.on('data', (buffer: Buffer) => parser.feed(buffer.toString()))
-        stream.once('error', rejectOnce)
-        stream.once('close', () => {
+        streamData.on('data', (buffer: Buffer) => parser.feed(buffer.toString()))
+        streamData.once('error', rejectOnce)
+        streamData.once('close', () => {
           console.log('[Z.ai] Non-stream closed, resolving with current data, content length:', data.choices[0].message.content.length)
           resolveOnce(data)
         })
-      } else if (response.data) {
+      } else if (streamData) {
         // JSON response - parse directly
         try {
-          const responseData = response.data
-          
           // Handle SSE format in JSON response
-          if (typeof responseData === 'string') {
+          if (typeof streamData === 'string') {
             let content = ''
-            const lines = responseData.split('\n')
+            const lines = streamData.split('\n')
             for (const line of lines) {
               if (line.startsWith('data:')) {
                 const jsonStr = line.substring(5).trim()
@@ -810,7 +809,7 @@ export class ZaiStreamHandler {
             data.choices[0].message.content = content
           } else {
             // Direct JSON object
-            data.choices[0].message.content = responseData.choices?.[0]?.message?.content || ''
+            data.choices[0].message.content = streamData.choices?.[0]?.message?.content || ''
           }
           
           console.log('[Z.ai] Non-stream JSON finished, content length:', data.choices[0].message.content.length)
@@ -820,7 +819,7 @@ export class ZaiStreamHandler {
           rejectOnce(err instanceof Error ? err : new Error(String(err)))
         }
       } else {
-        console.log('[Z.ai] Non-stream: response.data is falsy, taking empty path')
+        console.log('[Z.ai] Non-stream: streamData is falsy, taking empty path')
         resolveOnce(data)
       }
     })
